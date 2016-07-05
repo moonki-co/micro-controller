@@ -6,11 +6,10 @@
 #define DHTTYPE DHT11 //Se selecciona el DHT11 (hay //otros DHT)
 DHT dht(DHTPIN, DHTTYPE); //Se inicia una variable que será usada por Arduino para comunicarse con el sensor
 
-#define SSID "HITRON-A540"
-#define PASS "0CFJUE6O659M"
-//#define IP "184.106.153.149" // thingspeak.com
-String apiKey = "5KUQKCVAS5JDS5KU";  //thingspeak API key
-String GET = "GET /update?key=5KUQKCVAS5JDS5KU&field1=";
+#define SSID "Casa7"
+#define PASS "Kishi12345"
+String SERVER = "192.168.1.91";
+String GET = "GET /api/save?";
 
 SoftwareSerial mySerial(10, 11); // RX, TX
 String command = ""; // Stores response of the HC-06 Bluetooth device
@@ -19,7 +18,7 @@ String data; // the data of the smart band + linking device to be sent to the cl
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("AT");
   
   // The HC-06 defaults to 9600 according to the datasheet.
@@ -31,18 +30,21 @@ void setup()
 }
 
 void loop(){
-  
+  command = "";
 //******************************* Reading smart band data if is available.
   if (mySerial.available()) {
     while(mySerial.available()) { // While there is more to be read, keep reading.
-      command = (char)mySerial.read();
+      command += mySerial.read();
     }
     
-    //Serial.print(command);
-    data= String(command);
-    data+= getstr;
-    Serial.print(data);
-    command = ""; // No repeats
+    Serial.print(command);
+     data= command;
+    //data+= getstr;
+    //Serial.print(data);
+    //command = ""; // No repeats
+  }
+  else {
+    Serial.print("Puerto no disponible");
   }
 
     
@@ -61,13 +63,12 @@ void loop(){
  
   String strTemp = dtostrf(t, 4, 1, buf);
   String strHum = dtostrf(h, 4, 1, buf);
-  //updateTemp(strTemp);
+
   //************************************************ TCP connection
-  String cmd = "AT+CIPSTART=\"TCP\",\"";
-  //cmd += "184.106.153.149"; // api.thingspeak.com
-  cmd += "192.168.0.13"; // moonki
-  //cmd += "\",80";
+  String cmd = "AT+CIPSTART=\"TCP\",\""; 
+  cmd += SERVER;
   cmd += "\",5000";
+
   Serial.println(cmd);
   delay(2000);
   if(Serial.find("Error")){
@@ -75,15 +76,15 @@ void loop(){
     return;
   }
 
-// two methods to upload through URL          https://api.thingspeak.com/update.json?api_key=5KUQKCVAS5JDS5KU&field1=58&field2=23            https://api.thingspeak.com/update?api_key=5KUQKCVAS5JDS5KU&field1=0&field2=0
   //******************************************************* prepare GET string
   
-  String getStr = "GET /test?api_key=5KUQKCVAS5JDS5KU";
- // getStr += apiKey;
-  getStr +="&field1=";
+  String getStr = GET;
+  getStr +="temperatura=";
   getStr += String(strTemp);
-  getStr +="&field2=";
+  getStr +="&humedad=";
   getStr += String(strHum);
+  getStr +="&banda=";
+  getStr += String(data);
   getStr += "\r\n\r\n";
 
   // send data length
