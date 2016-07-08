@@ -8,7 +8,8 @@ DHT dht(DHTPIN, DHTTYPE); //Se inicia una variable que será usada por Arduino p
 
 #define SSID "Casa7"
 #define PASS "Kishi12345"
-String SERVER = "192.168.1.91";
+//String SERVER = "192.168.1.91";
+String SERVER = "moonki.herokuapp.com";
 String GET = "GET /api/save?";
 
 SoftwareSerial mySerial(10, 11); // RX, TX
@@ -31,14 +32,15 @@ void setup()
 
 void loop(){
   command = "";
+  data= "";
 //******************************* Reading smart band data if is available.
   if (mySerial.available()) {
     while(mySerial.available()) { // While there is more to be read, keep reading.
       command += mySerial.read();
     }
     
-    Serial.print(command);
-     data= command;
+    //Serial.print(command);
+    //data= command;
     //data+= getstr;
     //Serial.print(data);
     //command = ""; // No repeats
@@ -67,7 +69,7 @@ void loop(){
   //************************************************ TCP connection
   String cmd = "AT+CIPSTART=\"TCP\",\""; 
   cmd += SERVER;
-  cmd += "\",5000";
+  cmd += "\",80";
 
   Serial.println(cmd);
   delay(2000);
@@ -75,6 +77,15 @@ void loop(){
     Serial.println("AT+CIPSTART error");
     return;
   }
+
+  //**************************************************** Waiting for Band data
+while(!mySerial.available()){}
+
+while(mySerial.available()) { // While there is more to be read, keep reading.
+  data += mySerial.read();
+}
+
+
 
   //******************************************************* prepare GET string
   
@@ -86,6 +97,8 @@ void loop(){
   getStr +="&banda=";
   getStr += String(data);
   getStr += "\r\n\r\n";
+
+ Serial.print(getStr);
 
   // send data length
  cmd = "AT+CIPSEND=";
