@@ -6,11 +6,18 @@
 #define DHTTYPE DHT11 //Se selecciona el DHT11 (hay //otros DHT)
 DHT dht(DHTPIN, DHTTYPE); //Se inicia una variable que será usada por Arduino para comunicarse con el sensor
 
-#define SSID "Casa7"
-#define PASS "Kishi12345"
-//String SERVER = "192.168.1.91";
-String SERVER = "moonki.herokuapp.com";
-String GET = "GET /api/save?";
+#define SSID "HITRON-A540"
+#define PASS "0CFJUE6O659M"
+
+// Thingspeak server
+String GET = "GET /update?key=5KUQKCVAS5JDS5KU&";
+String SERVER = "184.106.153.149"; // api.thingspeak.com
+String PORT = "80";
+
+// Moonki server
+//String GET = "GET /api/save?";
+//String SERVER = "192.168.0.13";
+//String PORT = "5000";
 
 SoftwareSerial mySerial(10, 11); // RX, TX
 String command = ""; // Stores response of the HC-06 Bluetooth device
@@ -21,10 +28,10 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("AT");
-  
+
   // The HC-06 defaults to 9600 according to the datasheet.
   mySerial.begin(9600);
- 
+
   if(Serial.find("OK")){
     connectWiFi();
   }
@@ -33,43 +40,33 @@ void setup()
 void loop(){
   command = "";
   data= "";
-//******************************* Reading smart band data if is available.
+
+  //******************************* Reading smart band data if is available.
   if (mySerial.available()) {
     while(mySerial.available()) { // While there is more to be read, keep reading.
       command += mySerial.read();
     }
-    
-    //Serial.print(command);
-    //data= command;
-    //data+= getstr;
-    //Serial.print(data);
-    //command = ""; // No repeats
+
+    Serial.print(command);
   }
   else {
     Serial.print("Puerto no disponible");
   }
 
-    
-  // Read user input if available.
-  /*if (Serial.available()){
-    delay(10); // The delay is necessary to get this working!
-    mySerial.write(Serial.read());
-  }*/
-  
 //************************************************** DHT11 sensor reading
   float h = dht.readHumidity(); //Se lee la humedad
   float t = dht.readTemperature(); //Se lee la temperatura
 
 //*************************************************sensor readings convert to string
   char buf[16];  // convert to string
- 
+
   String strTemp = dtostrf(t, 4, 1, buf);
   String strHum = dtostrf(h, 4, 1, buf);
 
   //************************************************ TCP connection
-  String cmd = "AT+CIPSTART=\"TCP\",\""; 
+  String cmd = "AT+CIPSTART=\"TCP\",\"";
   cmd += SERVER;
-  cmd += "\",80";
+  cmd += ("\"," + PORT);
 
   Serial.println(cmd);
   delay(2000);
@@ -79,23 +76,20 @@ void loop(){
   }
 
   //**************************************************** Waiting for Band data
-while(!mySerial.available()){}
+  //while(!mySerial.available()){}
 
-while(mySerial.available()) { // While there is more to be read, keep reading.
-  data += mySerial.read();
-}
-
-
-
+  //while(mySerial.available()) { // While there is more to be read, keep reading.
+  //  data += mySerial.read();
+  //}
   //******************************************************* prepare GET string
-  
+
   String getStr = GET;
   getStr +="temperatura=";
-  getStr += String(strTemp);
+  getStr += strTemp;
   getStr +="&humedad=";
-  getStr += String(strHum);
+  getStr += strHum;
   getStr +="&banda=";
-  getStr += String(data);
+  getStr += command;
   getStr += "\r\n\r\n";
 
  Serial.print(getStr);
@@ -116,11 +110,11 @@ delay(2000);
     // alert user
     Serial.println("AT+CIPCLOSE");
   }
-  
+
   delay(16000);  // thingspeak needs 15 sec delay between updates
 }
 
- 
+
 boolean connectWiFi(){
   Serial.println("AT+CWMODE=1");
   delay(2000);
