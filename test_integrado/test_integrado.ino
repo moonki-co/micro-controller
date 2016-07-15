@@ -47,10 +47,10 @@ void loop(){
       command += mySerial.read();
     }
 
-    Serial.print(command);
+    Serial.println(command);
   }
   else {
-    Serial.print("Puerto no disponible");
+    Serial.println("Puerto no disponible");
   }
 
 //************************************************** DHT11 sensor reading
@@ -92,21 +92,21 @@ void loop(){
   getStr += command;
   getStr += "\r\n\r\n";
 
- Serial.print(getStr);
+  Serial.println(getStr);
 
   // send data length
- cmd = "AT+CIPSEND=";
- cmd += String(getStr.length());
- //cmd += getStr;                 //****************  able this line if you are not using ESP8266 to transmit, this option transmit cmd without the need of receiving <
+  cmd = "AT+CIPSEND=";
+  cmd += String(getStr.length());
+  //cmd += getStr;                 //****************  able this line if you are not using ESP8266 to transmit, this option transmit cmd without the need of receiving <
   Serial.println(cmd);
   delay(2000);
 
-//Serial.print(getStr);
-delay(2000);
- if(Serial.find(">")){
-    Serial.print(getStr);
+  //Serial.println(getStr);
+  delay(2000);
+  if(Serial.find(">")){
+    Serial.println(getStr);
   }
- else{
+  else{
     // alert user
     Serial.println("AT+CIPCLOSE");
   }
