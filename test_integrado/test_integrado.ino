@@ -6,8 +6,8 @@
 #define DHTTYPE DHT11 //Se selecciona el DHT11 (hay //otros DHT)
 DHT dht(DHTPIN, DHTTYPE); //Se inicia una variable que será usada por Arduino para comunicarse con el sensor
 
-#define SSID "HITRON-A540"
-#define PASS "0CFJUE6O659M"
+#define SSID "AndroidAP"
+#define PASS "gfaw1385"
 
 // Thingspeak server
 String GET = "GET /update?key=5KUQKCVAS5JDS5KU&";
@@ -35,6 +35,31 @@ void setup()
   if(Serial.find("OK")){
     connectWiFi();
   }
+}
+
+String createBandDataRequest(data) {
+
+  String result = "";
+  String buffer = "";
+  char counter = '1';
+  String current = "";
+
+  for(int i = 0; i < data.length; ++i) {
+    if(data[i] != '*') {
+      buffer += data[i];
+    }
+    else {
+      current = "&bandData";
+      current += (counter + "=");
+      current += buffer;
+
+      result += current;
+      counter++;
+      buffer = "";
+    }
+  }
+
+  return result;
 }
 
 void loop(){
@@ -88,8 +113,7 @@ void loop(){
   getStr += strTemp;
   getStr +="&humedad=";
   getStr += strHum;
-  getStr +="&banda=";
-  getStr += command;
+  getStr += createBandDataRequest(command);
   getStr += "\r\n\r\n";
 
   Serial.println(getStr);
