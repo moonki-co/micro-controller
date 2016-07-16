@@ -16,8 +16,8 @@ String PORT = "80";
 
 // Moonki server
 //String GET = "GET /api/save?";
-//String SERVER = "192.168.0.13";
-//String PORT = "5000";
+//String SERVER = "54.187.101.92";
+//String PORT = "80";
 
 SoftwareSerial mySerial(10, 11); // RX, TX
 String command = ""; // Stores response of the HC-06 Bluetooth device
@@ -37,20 +37,20 @@ void setup()
   }
 }
 
-String createBandDataRequest(data) {
+String createBandDataRequest(String data) {
 
   String result = "";
   String buffer = "";
   char counter = '1';
   String current = "";
-
-  for(int i = 0; i < data.length; ++i) {
+int i;
+  for(i = 0; i < data.length(); ++i) {
     if(data[i] != '*') {
       buffer += data[i];
     }
     else {
       current = "&bandData";
-      current += (counter + "=");
+      current += (String(counter) + "=");
       current += buffer;
 
       result += current;
@@ -69,7 +69,7 @@ void loop(){
   //******************************* Reading smart band data if is available.
   if (mySerial.available()) {
     while(mySerial.available()) { // While there is more to be read, keep reading.
-      command += mySerial.read();
+      command += ( (char)mySerial.read());
     }
 
     Serial.println(command);
@@ -109,9 +109,9 @@ void loop(){
   //******************************************************* prepare GET string
 
   String getStr = GET;
-  getStr +="temperatura=";
+  getStr +="field1=";
   getStr += strTemp;
-  getStr +="&humedad=";
+  getStr +="&field2=";
   getStr += strHum;
   getStr += createBandDataRequest(command);
   getStr += "\r\n\r\n";
@@ -123,10 +123,10 @@ void loop(){
   cmd += String(getStr.length());
   //cmd += getStr;                 //****************  able this line if you are not using ESP8266 to transmit, this option transmit cmd without the need of receiving <
   Serial.println(cmd);
-  delay(2000);
+  delay(500);
 
   //Serial.println(getStr);
-  delay(2000);
+  //delay(2000);
   if(Serial.find(">")){
     Serial.println(getStr);
   }
@@ -135,7 +135,7 @@ void loop(){
     Serial.println("AT+CIPCLOSE");
   }
 
-  delay(16000);  // thingspeak needs 15 sec delay between updates
+  delay(4000);  // thingspeak needs 15 sec delay between updates
 }
 
 
