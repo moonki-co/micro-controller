@@ -1,157 +1,91 @@
-#include <SoftwareSerial.h>
-#include <stdlib.h>
-#include <SoftwareSerial.h>
-#include "DHT.h" //cargamos la librería DHT
-#define DHTPIN 2 //Seleccionamos el pin en el que se //conectará el sensor
-#define DHTTYPE DHT11 //Se selecciona el DHT11 (hay //otros DHT)
-DHT dht(DHTPIN, DHTTYPE); //Se inicia una variable que será usada por Arduino para comunicarse con el sensor
+#include <ESP8266wifi.h>
+#include "SoftwareSerial.h"
 
-#define SSID "AndroidAP"
-#define PASS "gfaw1385"
+#define sw_serial_rx_pin 4 //  Connect this pin to TX on the esp8266
+#define sw_serial_tx_pin 6 //  Connect this pin to RX on the esp8266
+#define esp8266_reset_pin 5 // Connect this pin to CH_PD on the esp8266, not reset. (let reset be unconnected)
+#define SERV '0'
 
-// Thingspeak server
-String GET = "GET /update?key=5KUQKCVAS5JDS5KU&";
-String SERVER = "184.106.153.149"; // api.thingspeak.com
-String PORT = "80";
+String ssid = "Casa7";
+String password = "Kishi12345";
 
-// Moonki server
-//String GET = "GET /api/save?";
-//String SERVER = "54.187.101.92";
-//String PORT = "80";
+SoftwareSerial swSerial(sw_serial_rx_pin, sw_serial_tx_pin);
 
-SoftwareSerial mySerial(10, 11); // RX, TX
-String command = ""; // Stores response of the HC-06 Bluetooth device
-String getstr;
-String data; // the data of the smart band + linking device to be sent to the cloud
+// the last parameter sets the local echo option for the ESP8266 module..
+ESP8266wifi wifi(swSerial, swSerial, esp8266_reset_pin, Serial);//adding Serial enabled local echo and wifi debug
 
-void setup()
-{
+String inputString;
+boolean stringComplete = false;
+String data = "tmp=20&hum=60";
+String server = "54.245.148.171"; // Moonki server
+String uri = "/api/save?"; 
+String temp, hum;
+
+void setup() {
+  inputString.reserve(20);
+  swSerial.begin(115200);
   Serial.begin(115200);
-  Serial.println("AT");
 
-  // The HC-06 defaults to 9600 according to the datasheet.
-  mySerial.begin(9600);
+  while (!Serial);
 
-  if(Serial.find("OK")){
-    connectWiFi();
+  Serial.println("Starting wifi");    
+  wifi.setTransportToTCP();// this is also default
+  wifi.endSendWithNewline(true); // Will end all transmissions with a newline and carrage return ie println.. default is true
+
+  bool result;
+  result =  wifi.begin(); 
+  Serial.println(result);
+  Serial.println("waiting for wifi");  
+  //while (!wifi.begin()) ;
+    
+ 
+  Serial.println("WiFi connected");
+  // Print the IP address
+
+  while (!wifi.connectToAP(ssid, password)){
+    delay(500) ;
+    Serial.print(".");
   }
+  Serial.println("WiFi Sign In OK");
+  
+  boolean serverConnected =  wifi.connectToServer("54.245.148.171", "80");
 }
 
-String createBandDataRequest(String data) {
-
-  String result = "";
-  String buffer = "";
-  char counter = '1';
-  String current = "";
-int i;
-  for(i = 0; i < data.length(); ++i) {
-    if(data[i] != '*') {
-      buffer += data[i];
-    }
-    else {
-      current = "&bandData";
-      current += (String(counter) + "=");
-      current += buffer;
-
-      result += current;
-      counter++;
-      buffer = "";
-    }
-  }
-
-  return result;
+boolean find_OK(){
+  String ok = "";
+  char c;
+  while((c=swSerial.read()) != -1)
+    ok=ok+c;
+  Serial.println("find_0k()= " + ok + "\r\n");
+  return(ok.substring(0) == "OK");
 }
 
-void loop(){
-  command = "";
-  data= "";
+void loop () {
+   if (!wifi.isStarted())
+    wifi.begin();
+   if(!wifi.isConnectedToServer())
+     wifi.connectToServer("54.245.148.171", "80");
+    httppost();
+}
 
-  //******************************* Reading smart band data if is available.
-  if (mySerial.available()) {
-    while(mySerial.available()) { // While there is more to be read, keep reading.
-      command += ( (char)mySerial.read());
-    }
+void httppost () {
 
-    Serial.println(command);
-  }
-  else {
-    Serial.println("Puerto no disponible");
-  }
+  String postRequest =
+    "POST " + uri + " HTTP/1.1\r\n" +
+    "Host: " + server + "\r\n" +
+    "Accept: *" + "/" + "*\r\n" +
+    "Content-Length: " + data.length() + "\r\n" +
+    "Content-Type: application/x-www-form-urlencoded\r\n" +
+    "\r\n" + data + "\r\n";
 
-//************************************************** DHT11 sensor reading
-  float h = dht.readHumidity(); //Se lee la humedad
-  float t = dht.readTemperature(); //Se lee la temperatura
-
-//*************************************************sensor readings convert to string
-  char buf[16];  // convert to string
-
-  String strTemp = dtostrf(t, 4, 1, buf);
-  String strHum = dtostrf(h, 4, 1, buf);
-
-  //************************************************ TCP connection
-  String cmd = "AT+CIPSTART=\"TCP\",\"";
-  cmd += SERVER;
-  cmd += ("\"," + PORT);
-
-  Serial.println(cmd);
-  delay(2000);
-  if(Serial.find("Error")){
-    Serial.println("AT+CIPSTART error");
-    return;
-  }
-
-  //**************************************************** Waiting for Band data
-  //while(!mySerial.available()){}
-
-  //while(mySerial.available()) { // While there is more to be read, keep reading.
-  //  data += mySerial.read();
-  //}
-  //******************************************************* prepare GET string
-
-  String getStr = GET;
-  getStr +="field1=";
-  getStr += strTemp;
-  getStr +="&field2=";
-  getStr += strHum;
-  getStr += createBandDataRequest(command);
-  getStr += "\r\n\r\n";
-
-  Serial.println(getStr);
-
-  // send data length
-  cmd = "AT+CIPSEND=";
-  cmd += String(getStr.length());
-  //cmd += getStr;                 //****************  able this line if you are not using ESP8266 to transmit, this option transmit cmd without the need of receiving <
-  Serial.println(cmd);
+  Serial.print(postRequest);
+  String sendCmd = "AT+CIPSEND=";//determine the number of caracters to be sent.
+  swSerial.println(sendCmd + postRequest.length());
   delay(500);
+  swSerial.println(postRequest);
 
-  //Serial.println(getStr);
-  //delay(2000);
-  if(Serial.find(">")){
-    Serial.println(getStr);
-  }
-  else{
-    // alert user
-    Serial.println("AT+CIPCLOSE");
-  }
-
-  delay(4000);  // thingspeak needs 15 sec delay between updates
-}
-
-
-boolean connectWiFi(){
-  Serial.println("AT+CWMODE=1");
-  delay(2000);
-  String cmd="AT+CWJAP=\"";
-  cmd+=SSID;
-  cmd+="\",\"";
-  cmd+=PASS;
-  cmd+="\"";
-  Serial.println(cmd);
-  delay(5000);
-  if(Serial.find("OK")){
-    return true;
-  }else{
-    return false;
-  }
+  Serial.println("...............");
+  Serial.println(sendCmd + postRequest.length() + data);
+  Serial.println("...............");
+  find_OK();
 }
